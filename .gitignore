@@ -8,3 +8,5 @@ hs_err_pid*
 .bloop
 .vscode
 target
+.metals
+.metals/metals.mv.db
