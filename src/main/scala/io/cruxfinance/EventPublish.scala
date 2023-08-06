@@ -3,29 +3,36 @@ import java.time.format.DateTimeFormatter
 import com.satergo.ergonnection.ErgoSocket
 import com.satergo.ergonnection.records.Peer
 import com.satergo.ergonnection.Version
-import java.net.InetSocketAddress
+
+import java.net.{SocketException, URI}
 import com.satergo.ergonnection.messages.Inv
 import com.satergo.ergonnection.modifiers.ErgoTransaction
+
 import java.util.HexFormat
 import java.util.stream.Collectors
 import com.satergo.ergonnection.protocol.ProtocolMessage
 import com.satergo.ergonnection.modifiers.Header
-import java.net.SocketException
 import com.satergo.ergonnection.messages.ModifierRequest
+import io.cruxfinance.types.Config
 import org.zeromq.ZContext
 import org.zeromq.SocketType
 
 object EventPublish {
   def main(args: Array[String]) = {
 
-    val nodeIP = sys.env.getOrElse("ERGO_NODE_IP", "127.0.0.1")
-    val nodePort = Integer.parseInt(sys.env.getOrElse("ERGO_NODE_PORT", "9030"))
+    val config = Config.read("config.json")
 
-    val zeroMQIP = sys.env.getOrElse("ZMQ_IP", "0.0.0.0")
-    val zeroMQPort = sys.env.getOrElse("ZMQ_PORT", "9060")
+    val nodeURL = config.nodeURL
+    val nodePort = config.nodePeersPort
+
+    val nodeURI = new URI(nodeURL)
+
+    val zeroMQIP = config.zmqIP
+    val zeroMQPort = config.zmqPort
 
     var ergoSocket = new ErgoSocket(
-      new InetSocketAddress(nodeIP, nodePort),
+      nodeURI.getHost,
+      nodePort.toInt,
       new Peer(
         "ergoref",
         "ergo-mainnet-5.0.12",
@@ -54,13 +61,16 @@ object EventPublish {
                   .elements()
                   .stream()
                   .map(HexFormat.of().formatHex(_))
-                  .toList()
+                  .toList
                 println(
                   f"[${hhmmss()}] Received ID(s) of transaction(s) in Inv message: ${txIds
                       .stream()
                       .collect(Collectors.joining(", "))}"
                 );
-                txIds.forEach(txId => socket.send(s"utx${txId}"))
+                txIds.forEach(txId => {
+                  socket.sendMore("mempool")
+                  socket.send(txId)
+                })
                 ergoSocket.send(
                   new ModifierRequest(ErgoTransaction.TYPE_ID, inv.elements())
                 );
@@ -69,13 +79,16 @@ object EventPublish {
                   .elements()
                   .stream()
                   .map(HexFormat.of().formatHex(_))
-                  .toList()
+                  .toList
                 println(
                   f"[${hhmmss()}] Received ID(s) of headers(s) in Inv message: ${headerIds
                       .stream()
                       .collect(Collectors.joining(", "))}"
                 );
-                headerIds.forEach(headerId => socket.send(s"hdr${headerId}"))
+                headerIds.forEach(headerId => {
+                  socket.sendMore("newBlock")
+                  socket.send(headerId)
+                })
               case _ =>
             }
           }
@@ -88,10 +101,11 @@ object EventPublish {
           try {
             ergoSocket.close();
           } catch {
-            case e: Exception => println(f"Closing socket: ${e.getMessage()}");
+            case e: Exception => println(f"Closing socket: ${e.getMessage}");
           }
           ergoSocket = new ErgoSocket(
-            new InetSocketAddress("192.168.1.137", 9030),
+            nodeURI.getHost,
+            nodePort.toInt,
             new Peer(
               "ergoref",
               "ergo-mainnet-5.0.12",
@@ -103,7 +117,7 @@ object EventPublish {
           ergoSocket.acceptHandshake();
         }
         case iae: IllegalArgumentException =>
-          println(f"Error occured: ${iae.getMessage()}")
+          println(f"Error occured: ${iae.getMessage}")
         case e: Exception => throw e;
       }
     }
