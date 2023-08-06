@@ -3,21 +3,19 @@ import time
 
 context = zmq.Context()
 
-#  Socket to talk to server
 print("Connecting to ergo node")
 socket = context.socket(zmq.SUB)
 socket.connect("tcp://127.0.0.1:9060")
+# Subscribe to the topics you are interested in
+socket.subscribe("mempool")
+socket.subscribe("newBlock")
 
-# Subscribe to all topics
-socket.subscribe("")
-
-#  Do 10 requests, waiting each time for a response
 while True:
-
-    #  Get the reply.
+    # First receive the topic
+    topic = socket.recv().decode()
+    # Then receive the message content
     message = socket.recv().decode()
-    if message.startswith("utx"):
-        print(f"{time.asctime()} - Unconfirmed tx hit the mempool: {message[3:]}")
-    else:
-        print(f"{time.asctime()} - New block mined with header: {message[3:67]}")
-    
+    if topic == "newBlock":
+        print(f"{time.asctime()} - New block mined with header {message[:64]}")
+    elif topic == "mempool":
+        print(f"{time.asctime()} - Unconfirmed tx hit the mempool: {message}")
