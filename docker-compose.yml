@@ -1,11 +1,9 @@
 version: '3'
 
 services:
-
   ergo-node-zmqpub:
     container_name: ergo-node-zmqpub
-    image: ergo-node-zmqpub:latest
-    env_file: .env
+    build: .
     ports:
-      - 9060:9060
+      - "9060:9060"
     restart: unless-stopped
