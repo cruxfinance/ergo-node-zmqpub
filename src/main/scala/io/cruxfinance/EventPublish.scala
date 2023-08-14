@@ -97,7 +97,7 @@ object EventPublish {
         }
       } catch {
         case se: SocketException => {
-          println("Attempting to reconnect");
+          println("Socket failed, attempting to reconnect");
           try {
             ergoSocket.close();
           } catch {
@@ -116,8 +116,26 @@ object EventPublish {
           ergoSocket.sendHandshake();
           ergoSocket.acceptHandshake();
         }
-        case iae: IllegalArgumentException =>
-          println(f"Error occured: ${iae.getMessage}")
+        case iae: IllegalArgumentException => {
+          println("Received incorrect magic, attempting to reconnect");
+          try {
+            ergoSocket.close();
+          } catch {
+            case e: Exception => println(f"Closing socket: ${e.getMessage}");
+          }
+          ergoSocket = new ErgoSocket(
+            nodeURI.getHost,
+            nodePort.toInt,
+            new Peer(
+              "ergoref",
+              "ergo-mainnet-5.0.12",
+              Version.parse("5.0.12"),
+              ErgoSocket.BASIC_FEATURE_SET
+            )
+          );
+          ergoSocket.sendHandshake();
+          ergoSocket.acceptHandshake();
+        }
         case e: Exception => throw e;
       }
     }
