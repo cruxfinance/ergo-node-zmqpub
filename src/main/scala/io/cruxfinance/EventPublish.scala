@@ -16,6 +16,8 @@ import com.satergo.ergonnection.messages.ModifierRequest
 import io.cruxfinance.types.Config
 import org.zeromq.ZContext
 import org.zeromq.SocketType
+import java.net.InetSocketAddress
+import com.satergo.ergonnection.messages.ModifierResponse
 
 object EventPublish {
   def main(args: Array[String]) = {
@@ -31,8 +33,7 @@ object EventPublish {
     val zeroMQPort = config.zmqPort
 
     var ergoSocket = new ErgoSocket(
-      nodeURI.getHost,
-      nodePort.toInt,
+      new InetSocketAddress(nodeURI.getHost, nodePort.toInt),
       new Peer(
         "ergoref",
         "ergo-mainnet-5.0.12",
@@ -89,8 +90,26 @@ object EventPublish {
                   socket.sendMore("newBlock")
                   socket.send(headerId)
                 })
+                ergoSocket.send(
+                  new ModifierRequest(Header.TYPE_ID, inv.elements())
+                );
               case _ =>
             }
+          }
+          case mod: ModifierResponse => {
+            mod
+              .rawModifiers()
+              .forEach(rm => {
+                rm.typeId() match {
+                  case Header.TYPE_ID => {
+                    val header = Header.deserialize(rm.id(), rm.`object`())
+                    socket.sendMore("newHeight")
+                    socket.sendMore(HexFormat.of.formatHex(header.id()))
+                    socket.send(header.height().toString())
+                  }
+                  case _ =>
+                }
+              })
           }
           case _: ProtocolMessage =>
 
@@ -104,8 +123,7 @@ object EventPublish {
             case e: Exception => println(f"Closing socket: ${e.getMessage}");
           }
           ergoSocket = new ErgoSocket(
-            nodeURI.getHost,
-            nodePort.toInt,
+            new InetSocketAddress(nodeURI.getHost, nodePort.toInt),
             new Peer(
               "ergoref",
               "ergo-mainnet-5.0.12",
@@ -124,8 +142,7 @@ object EventPublish {
             case e: Exception => println(f"Closing socket: ${e.getMessage}");
           }
           ergoSocket = new ErgoSocket(
-            nodeURI.getHost,
-            nodePort.toInt,
+            new InetSocketAddress(nodeURI.getHost, nodePort.toInt),
             new Peer(
               "ergoref",
               "ergo-mainnet-5.0.12",
