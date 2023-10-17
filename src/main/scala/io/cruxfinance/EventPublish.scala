@@ -108,7 +108,7 @@ object EventPublish {
                       socket.sendMore(HexFormat.of.formatHex(header.id()))
                       socket.send(header.height().toString())
                     } catch {
-                      case _ ->
+                      case _ =>
                     }
                   }
                   case _ =>
