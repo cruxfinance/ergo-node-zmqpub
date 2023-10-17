@@ -102,10 +102,14 @@ object EventPublish {
               .forEach(rm => {
                 rm.typeId() match {
                   case Header.TYPE_ID => {
-                    val header = Header.deserialize(rm.id(), rm.`object`())
-                    socket.sendMore("newHeight")
-                    socket.sendMore(HexFormat.of.formatHex(header.id()))
-                    socket.send(header.height().toString())
+                    try {
+                      val header = Header.deserialize(rm.id(), rm.`object`())
+                      socket.sendMore("newHeight")
+                      socket.sendMore(HexFormat.of.formatHex(header.id()))
+                      socket.send(header.height().toString())
+                    } catch {
+                      case _ ->
+                    }
                   }
                   case _ =>
                 }
