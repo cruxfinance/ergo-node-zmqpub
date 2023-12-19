@@ -4,6 +4,12 @@ services:
   ergo-node-zmqpub:
     container_name: ergo-node-zmqpub
     build: .
+    volumes:
+      - ./config.json:/app/config.json
     ports:
       - "9060:9060"
     restart: unless-stopped
+    logging:
+      options:
+        max-size: "10m"
+        max-file: "3"
